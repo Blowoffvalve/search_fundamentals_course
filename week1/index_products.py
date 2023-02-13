@@ -118,19 +118,15 @@ def index_file(file, index_name):
         #### Step 2.b.1: Create a valid OpenSearch Doc and insert into docs array
         the_doc = {'_index': index_name, '_id': doc["sku"][0], '_source': doc}
         docs.append(the_doc)
-        docs_indexed += 1
-        if docs_indexed % batch_size == 0:
-            bulk(client, docs, request_timeout=120)
-            logger.info(f'{docs_indexed} documents indexed')
-            docs = []
-    logger.info(f"{len(docs)} documents created from file {file}")
-    # print(f"{len(docs)} documents created from file {file}")
+        
+        # logger.info(f"{len(docs)} documents created from file {file}")
+        # print(f"{len(docs)} documents created from file {file}")
     #### Step 2.b.2:  bulk index 2000 docs at a time
     docs_indexed = 0
     for indices in range(0, len(docs), batch_size):
         bulk(client, docs[docs_indexed: docs_indexed+batch_size])
         # logger.info(f"Documents from index {docs_indexed} to {docs_indexed+batch_size} indexed from file {file}")
-        print(f"Documents from index {docs_indexed} to {docs_indexed+batch_size} indexed from file {file}")
+        # print(f"Documents from index {docs_indexed} to {docs_indexed+batch_size} indexed from file {file}")
         docs_indexed+=batch_size
 
     return docs_indexed

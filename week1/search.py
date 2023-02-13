@@ -177,8 +177,8 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
                     "field": "department.keyword"
                 }
             },
-            "products_without_images": {
-                "missing": {"field": "price"}
+            "missing_images": {
+                "missing": {"field": "image.keyword"}
             }
         },
         "highlight": {
