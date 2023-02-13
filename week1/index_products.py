@@ -85,7 +85,15 @@ def get_opensearch():
     port = 9200
     auth = ('admin', 'admin')
     #### Step 2.a: Create a connection to OpenSearch
-    client = None
+    client = OpenSearch(
+        hosts=[{'host': host, 'port': port}],
+        http_compress=True,
+        http_auth=auth,
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False
+    )
     return client
 
 
@@ -93,22 +101,37 @@ def index_file(file, index_name):
     docs_indexed = 0
     client = get_opensearch()
     logger.info(f'Processing file : {file}')
+    print(f'Processing file : {file}')
     tree = etree.parse(file)
     root = tree.getroot()
     children = root.findall("./product")
     docs = []
+    batch_size = 500
     for child in children:
         doc = {}
         for idx in range(0, len(mappings), 2):
             xpath_expr = mappings[idx]
             key = mappings[idx + 1]
             doc[key] = child.xpath(xpath_expr)
-        #print(doc)
         if 'productId' not in doc or len(doc['productId']) == 0:
             continue
-        #### Step 2.b: Create a valid OpenSearch Doc and bulk index 2000 docs at a time
-        the_doc = None
+        #### Step 2.b.1: Create a valid OpenSearch Doc and insert into docs array
+        the_doc = {'_index': index_name, '_id': doc["sku"][0], '_source': doc}
         docs.append(the_doc)
+        docs_indexed += 1
+        if docs_indexed % batch_size == 0:
+            bulk(client, docs, request_timeout=120)
+            logger.info(f'{docs_indexed} documents indexed')
+            docs = []
+    logger.info(f"{len(docs)} documents created from file {file}")
+    # print(f"{len(docs)} documents created from file {file}")
+    #### Step 2.b.2:  bulk index 2000 docs at a time
+    docs_indexed = 0
+    for indices in range(0, len(docs), batch_size):
+        bulk(client, docs[docs_indexed: docs_indexed+batch_size])
+        # logger.info(f"Documents from index {docs_indexed} to {docs_indexed+batch_size} indexed from file {file}")
+        print(f"Documents from index {docs_indexed} to {docs_indexed+batch_size} indexed from file {file}")
+        docs_indexed+=batch_size
 
     return docs_indexed
 
@@ -128,6 +151,7 @@ def main(source_dir: str, index_name: str, workers: int):
 
     finish = perf_counter()
     logger.info(f'Done. Total docs: {docs_indexed} in {(finish - start)/60} minutes')
+    print(f'Done. Total docs: {docs_indexed} in {(finish - start)/60} minutes')
 
 if __name__ == "__main__":
     main()

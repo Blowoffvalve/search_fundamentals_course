@@ -30,6 +30,11 @@ try:
 except:
     print("search_fun_test doesn't exist, that's OK")
 
+
+print(client.cat.allocation())
+
+print(client.cat.shards())
+
 # Create an index with non-default settings.
 index_name = 'search_fun_revisited'
 index_body = {

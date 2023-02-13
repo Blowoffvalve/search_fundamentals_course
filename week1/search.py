@@ -5,10 +5,25 @@ from flask import (
     Blueprint, redirect, render_template, request, url_for
 )
 
-from week1.opensearch import get_opensearch
+from opensearchpy import OpenSearch
 
 bp = Blueprint('search', __name__, url_prefix='/search')
 
+def get_opensearch():
+    host = 'localhost'
+    port = 9200
+    auth = ('admin', 'admin')
+    #### Step 2.a: Create a connection to OpenSearch
+    client = OpenSearch(
+        hosts=[{'host': host, 'port': port}],
+        http_compress=True,
+        http_auth=auth,
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False
+    )
+    return client
 
 # Process the filters requested by the user and return a tuple that is appropriate for use in: the query, URLs displaying the filter and the display of the applied filters
 # filters -- convert the URL GET structure into an OpenSearch filter query
@@ -58,7 +73,7 @@ def process_filters(filters_input):
 # Our main query route.  Accepts POST (via the Search box) and GETs via the clicks on aggregations/facets
 @bp.route('/query', methods=['GET', 'POST'])
 def query():
-    opensearch = get_opensearch() # Load up our OpenSearch client from the opensearch.py file.
+    opensearch: OpenSearch = get_opensearch() # Load up our OpenSearch client from the opensearch.py file.
     # Put in your code to query opensearch.  Set error as appropriate.
     error = None
     user_query = None
@@ -68,6 +83,7 @@ def query():
     filters = None
     sort = "_score"
     sortDir = "desc"
+    indexName = "bbuy_products"
     if request.method == 'POST':  # a query has been submitted
         user_query = request.form['query']
         if not user_query:
@@ -94,7 +110,7 @@ def query():
     print("query obj: {}".format(query_obj))
 
     #### Step 4.b.ii
-    response = None   # TODO: Replace me with an appropriate call to OpenSearch
+    response = opensearch.search(index=indexName, body= query_obj)   # TODO: Replace me with an appropriate call to OpenSearch
     # Postprocess results here if you so desire
 
     #print(response)
@@ -111,11 +127,73 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
     query_obj = {
         'size': 10,
         "query": {
-            "match_all": {} # Replace me with a query that both searches and filters
+            "function_score": {
+                "query": {
+                    "boosting": {
+                        "positive": {
+                            "bool": {
+                                "must": {
+                                    "query_string": {
+                                        "fields": ["name^100", "shortDescription^50", "longDescription^10", "department"],
+                                        "phrase_slop": 3,
+                                        "query": user_query
+                                    }
+                                },
+                                "filter": filters,
+                            }
+                        },
+                        "negative": {
+                            "multi_match": {
+                                "fields": ["longDescription", "shortDescription", "name"], 
+                                "query": "compatible"
+                            }
+                        },
+                        "negative_boost": 0.2
+                    },
+                },
+                "boost_mode": "replace",
+                "score_mode": "avg",
+                "functions": [
+                ]
+            }
         },
         "aggs": {
             #### Step 4.b.i: create the appropriate query and aggregations here
-
-        }
+            "regularPrice": {
+                "range": {
+                    "field": "regularPrice",
+                    "ranges": [
+                        {"key": "$", "to": 100},
+                        {"key": "$$", "from": 100, "to": 200},
+                        {"key": "$$$", "from": 200, "to": 300},
+                        {"key": "$$$$", "from": 300, "to": 400},
+                        {"key": "$$$$$", "from": 400, "to": 500},
+                        {"key": "$$$$$$", "from": 500},
+                    ]
+                }
+            },
+            "department": {
+                "terms": {
+                    "field": "department.keyword"
+                }
+            },
+            "products_without_images": {
+                "missing": {"field": "price"}
+            }
+        },
+        "highlight": {
+            "fields": {
+                "name":{"number_of_fragments" : 5},
+                "shortDescription": {"number_of_fragments" : 5},
+                "longDescription": {"number_of_fragments" : 5}
+            }
+        },
+        "sort": [
+            {
+                sort: {
+                    "order": sortDir
+                }
+            }
+        ]
     }
     return query_obj
