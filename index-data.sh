@@ -5,12 +5,12 @@ usage()
   exit 2
 }
 
-PRODUCTS_JSON_FILE="/workspace/search_fundamentals_course/opensearch/bbuy_products.json"
-QUERIES_JSON_FILE="/workspace/search_fundamentals_course/opensearch/bbuy_queries.json"
-DATASETS_DIR="/workspace/datasets"
-PYTHON_LOC="/workspace/search_fundamentals_course/week1"
+PRODUCTS_JSON_FILE="/Users/opeoluwao/Dropbox/Ope/Personal/Projects/search/search_fundamentals_course/week2/conf/bbuy_products.json"
+QUERIES_JSON_FILE="/Users/opeoluwao/Dropbox/Ope/Personal/Projects/search/search_fundamentals_course/week2/conf/bbuy_queries.json"
+DATASETS_DIR="/Users/opeoluwao/Dropbox/Ope/Personal/Projects/search/search_fundamentals_course/"
+PYTHON_LOC="/Users/opeoluwao/Dropbox/Ope/Personal/Projects/search/search_fundamentals_course/week1"
 
-LOGS_DIR="/workspace/logs"
+LOGS_DIR="/Users/opeoluwao/Dropbox/Ope/Personal/Projects/search/search_fundamentals_course/logs"
 
 while getopts ':p:q:g:y:d:h' c
 do
